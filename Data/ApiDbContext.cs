@@ -15,3 +15,4 @@ namespace Places.Data
         public DbSet<Test> Tests { get; set; }
     }
 }
+    

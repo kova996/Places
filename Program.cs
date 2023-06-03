@@ -4,11 +4,11 @@ using Places.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddSingleton<IGooglePlacesService, GooglePlacesService>();
+builder.Services.AddSingleton<IFourSquarePlacesService, FourSquarePlacesService>();
 
 builder.Services.AddControllers();
-builder.Services.AddCors(policy => 
-    policy.AddPolicy("OpenCorsPolicy", opt => 
+builder.Services.AddCors(policy =>
+    policy.AddPolicy("OpenCorsPolicy", opt =>
         opt.AllowAnyOrigin()
          .AllowAnyHeader()
          .AllowAnyMethod()
@@ -18,24 +18,25 @@ builder.Services.AddCors(policy =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("foursquare", c =>
+{
+    c.BaseAddress = new Uri("https://api.foursquare.com");
+    c.DefaultRequestHeaders.Add("Accept", "application/json");
+    c.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", builder.Configuration.GetValue<string>("FourSquareApiKey"));
+});
 
-// Database Context Dependancy Injection 
 
-var dbHost = Environment.GetEnvironmentVariable("DB_HOST");
-var dbName = Environment.GetEnvironmentVariable("DB_NAME"); ;
-var dbPassword = Environment.GetEnvironmentVariable("DB_MSSQL_SA_PASSWORD"); ;
-var connectionString = $"Data Source={dbHost};Initial Catalog={dbName};User ID=sa;Password={dbPassword};TrustServerCertificate=True";
-//connectionString = $"Server=localhost,8082;Initial Catalog=PlacesApp;User ID=sa;Password=Password.123;TrustServerCertificate=True";
-
-builder.Services.AddDbContext<ApiDbContext>(opt => opt.UseSqlServer(connectionString));
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddDbContext<ApiDbContext>(opt => opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+}
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger(); 
+    app.UseSwagger();
     app.UseSwaggerUI();
 }
 
@@ -46,4 +47,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
- 
