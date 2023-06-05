@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Places.Data;
+using Places.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +15,9 @@ builder.Services.AddCors(policy =>
          .AllowAnyMethod()
     )
 );
+
+builder.Services.AddSignalR();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -28,7 +32,7 @@ builder.Services.AddHttpClient("foursquare", c =>
 
 if (builder.Environment.IsDevelopment())
 {
-    builder.Services.AddDbContext<ApiDbContext>(opt => opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+    builder.Services.AddDbContext<RequestResponseDbContext>(opt => opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 }
 
 var app = builder.Build();
@@ -45,5 +49,7 @@ app.UseCors("OpenCorsPolicy");
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHub<EventsHub>("/eventsHub");
 
 app.Run();

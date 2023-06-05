@@ -1,5 +1,9 @@
-using System.Collections.Specialized;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Places.Data;
+using Places.Hubs;
+using Places.Models;
 
 namespace Places.Controllers;
 
@@ -9,17 +13,21 @@ public class PlacesController : ControllerBase
 {
     private readonly ILogger<PlacesController> _logger;
     private readonly IFourSquarePlacesService _fourSquarePlacesService;
+    private readonly IHubContext<EventsHub> _notificationHubContext;
+    private readonly RequestResponseDbContext _dbContext;
 
-    public PlacesController(ILogger<PlacesController> logger, IFourSquarePlacesService fourSquarePlacesService)
+    public PlacesController(ILogger<PlacesController> logger, IFourSquarePlacesService fourSquarePlacesService, IHubContext<EventsHub> notificationHubContext, RequestResponseDbContext dbContext)
     {
         _logger = logger;
         _fourSquarePlacesService = fourSquarePlacesService;
+        _notificationHubContext = notificationHubContext;
+        _dbContext = dbContext;
     }
 
     [HttpGet("List")]
     public async Task<IActionResult> GetNearbyPlaces()
     {
-        var response = _fourSquarePlacesService.GetPlaces(null, null, null, null, null).Result;
+        var response = _fourSquarePlacesService.GetPlaces(new FoursquareRequest()).Result;
         var result = await response.Content.ReadFromJsonAsync<FoursquareResponse>();
 
         if (response.IsSuccessStatusCode)
@@ -35,27 +43,35 @@ public class PlacesController : ControllerBase
     [HttpPost("List")]
     public async Task<IActionResult> GetNearbyPlacesFiltered([FromBody] FoursquareRequest request)
     {
-        var options = new NameValueCollection
-            {
-                { "ll", $"{request.latitude},{request.longitude}" },
-                { "client_id", request.clientId },
-                { "client_secret", request.clientSecret },
-                { "v", "20211001" },
-                { "query", request.query },
-                { "limit", request.limit.ToString() }
-            };
-        //v3/places/search?
-        //var response = await _fourSquarePlacesService.GetAsync($"/v2/venues/search?{options.ToQueryString()}");
-        var response = _fourSquarePlacesService.GetPlaces(null, null, null, null, null).Result;
+        string a = request.GetQueryString();
+        Console.WriteLine(a);
+        string requestUrl = $"{Request.Scheme}://{Request.Host}{Request.Path}{Request.QueryString}";
+
+        var response = _fourSquarePlacesService.GetPlaces(request).Result;
         FoursquareResponse? result = await response.Content.ReadFromJsonAsync<FoursquareResponse>();
+
+        result.results.ToList().ForEach(el => Console.WriteLine(el.name));
+
+        await _notificationHubContext.Clients.All.SendAsync("ReceiveMessage", request);
 
         if (response.IsSuccessStatusCode)
         {
+            var log = new RequestResponseLog
+            {
+                RequestUrl = requestUrl,
+                RequestBody = JsonSerializer.Serialize(request),
+                ResponseStatusCode = (int)response.StatusCode,
+                ResponseBody =  JsonSerializer.Serialize(result),
+                LogDateTime = DateTime.Now
+            };
+            _dbContext.RequestResponseLogs.Add(log);
+            await _dbContext.SaveChangesAsync();
             return Ok(result);
         }
         else
         {
             return BadRequest(result);
         }
+        // TODO: SAVE THE RIGHT CONTENT
     }
 }

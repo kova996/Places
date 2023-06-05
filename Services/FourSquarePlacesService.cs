@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using Places.Models;
 
 public class FourSquarePlacesService : IFourSquarePlacesService
 {
@@ -9,8 +10,8 @@ public class FourSquarePlacesService : IFourSquarePlacesService
         _httpClient = httpClientFactory.CreateClient($"foursquare");
     }
 
-    public async Task<HttpResponseMessage> GetPlaces(double? latitude, double? longitude, string? fields, string? query, int? limit)
+    public async Task<HttpResponseMessage> GetPlaces(FoursquareRequest foursquareRequest)
     {
-        return await _httpClient.GetAsync($"/v3/places/nearby");
+        return await _httpClient.GetAsync($"/v3/places/search?{foursquareRequest.GetQueryString()}");
     }
 }
