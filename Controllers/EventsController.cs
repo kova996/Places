@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Places.Contracts.Repository;
 using Places.Data;
 using Places.Hubs;
 using Places.Models;
@@ -12,13 +13,13 @@ public class EventsController : ControllerBase
 {
     private readonly ILogger<PlacesController> _logger;
     private readonly IHubContext<EventsHub> _notificationHubContext;
-    private readonly RequestResponseDbContext _dbContext;
+    private readonly IRepositoryManager _repo;
 
-    public EventsController(ILogger<PlacesController> logger, IHubContext<EventsHub> notificationHubContext, RequestResponseDbContext dbContext)
+    public EventsController(ILogger<PlacesController> logger, IHubContext<EventsHub> notificationHubContext, IRepositoryManager repo)
     {
         _logger = logger;
         _notificationHubContext = notificationHubContext;
-        _dbContext = dbContext;
+        _repo = repo;
     }
 
     [HttpGet]
@@ -26,9 +27,9 @@ public class EventsController : ControllerBase
     {
         try
         {
-            var result = _dbContext.RequestResponseLogs.ToList();
-            Console.WriteLine(result[3].ResponseBody);
-
+            var result = _repo.PlacesRepository.GetRequestResponseLogs().ToList();
+            if (result is null)
+                return NotFound();
             return Ok(result);
         }
         catch (Exception e)

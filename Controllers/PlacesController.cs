@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Places.Contracts.Repository;
 using Places.Data;
 using Places.Hubs;
 using Places.Models;
@@ -14,20 +15,21 @@ public class PlacesController : ControllerBase
     private readonly ILogger<PlacesController> _logger;
     private readonly IFourSquarePlacesService _fourSquarePlacesService;
     private readonly IHubContext<EventsHub> _notificationHubContext;
-    private readonly RequestResponseDbContext _dbContext;
+    private readonly IRepositoryManager _repo;
 
-    public PlacesController(ILogger<PlacesController> logger, IFourSquarePlacesService fourSquarePlacesService, IHubContext<EventsHub> notificationHubContext, RequestResponseDbContext dbContext)
+    public PlacesController(ILogger<PlacesController> logger, IFourSquarePlacesService fourSquarePlacesService, IHubContext<EventsHub> notificationHubContext,
+        IRepositoryManager repo)
     {
         _logger = logger;
         _fourSquarePlacesService = fourSquarePlacesService;
         _notificationHubContext = notificationHubContext;
-        _dbContext = dbContext;
+        _repo = repo;
     }
 
     [HttpGet("List")]
     public async Task<IActionResult> GetNearbyPlaces()
     {
-        var response = _fourSquarePlacesService.GetPlaces(new FoursquareRequest()).Result;
+        var response = await _fourSquarePlacesService.GetPlaces(new FoursquareRequest());
         var result = await response.Content.ReadFromJsonAsync<FoursquareResponse>();
 
         if (response.IsSuccessStatusCode)
@@ -47,10 +49,10 @@ public class PlacesController : ControllerBase
         Console.WriteLine(a);
         string requestUrl = $"{Request.Scheme}://{Request.Host}{Request.Path}{Request.QueryString}";
 
-        var response = _fourSquarePlacesService.GetPlaces(request).Result;
+        var response = await _fourSquarePlacesService.GetPlaces(request);
         FoursquareResponse? result = await response.Content.ReadFromJsonAsync<FoursquareResponse>();
 
-        result.results.ToList().ForEach(el => Console.WriteLine(el.name));
+        result?.results.ToList().ForEach(el => Console.WriteLine(el.name));
 
         await _notificationHubContext.Clients.All.SendAsync("ReceiveMessage", request);
 
@@ -64,8 +66,8 @@ public class PlacesController : ControllerBase
                 ResponseBody =  JsonSerializer.Serialize(result),
                 LogDateTime = DateTime.Now
             };
-            _dbContext.RequestResponseLogs.Add(log);
-            await _dbContext.SaveChangesAsync();
+            _repo.PlacesRepository.AddRequestResponse(log);
+            //await _repo.Save();
             return Ok(result);
         }
         else

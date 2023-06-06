@@ -29,6 +29,7 @@ services:
       - DB_MSSQL_SA_PASSWORD=Password.123
     networks:
       - placesnet
+    network_mode: host
 
 networks:
   placesnet:

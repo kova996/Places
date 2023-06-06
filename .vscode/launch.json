@@ -12,7 +12,7 @@
             "netCore": {
                 "debuggerPath": "/remote_debugger/vsdbg"
             },
-            "containerName": "places-container-debug"
+            "containerName": "places-app"
         },
         {
             "name": ".NET Core Launch (web)",

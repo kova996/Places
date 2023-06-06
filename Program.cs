@@ -1,20 +1,19 @@
 using Microsoft.EntityFrameworkCore;
+using Places.Contracts.Repository;
 using Places.Data;
+using Places.Extensions;
 using Places.Hubs;
+using Places.Repository;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddScoped<IRepositoryManager, RepositoryManager>();
 builder.Services.AddSingleton<IFourSquarePlacesService, FourSquarePlacesService>();
 
 builder.Services.AddControllers();
-builder.Services.AddCors(policy =>
-    policy.AddPolicy("OpenCorsPolicy", opt =>
-        opt.AllowAnyOrigin()
-         .AllowAnyHeader()
-         .AllowAnyMethod()
-    )
-);
+
+builder.Services.RegisterCors();
 
 builder.Services.AddSignalR();
 
@@ -22,17 +21,11 @@ builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddHttpClient("foursquare", c =>
-{
-    c.BaseAddress = new Uri("https://api.foursquare.com");
-    c.DefaultRequestHeaders.Add("Accept", "application/json");
-    c.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", builder.Configuration.GetValue<string>("FourSquareApiKey"));
-});
-
+builder.Services.RegisterHttpClient(builder.Configuration);
 
 if (builder.Environment.IsDevelopment())
 {
-    builder.Services.AddDbContext<RequestResponseDbContext>(opt => opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+   builder.Services.RegisterDbContext(builder.Configuration);
 }
 
 var app = builder.Build();
